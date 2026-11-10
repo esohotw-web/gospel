@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>三元福音 The 3 Circles - 互動分享</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- PWA Manifest 與主題色 -->
+<link rel="manifest" href="manifest-gp.json">
+<meta name="theme-color" content="#f59e0b">
+
+<!-- iOS Safari 全螢幕獨立 App 支援 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3Circles">
+<link rel="apple-touch-icon" href="icon-gp-192.png">
+ 
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Noto Sans TC', sans-serif; height: 100dvh; overflow: hidden; }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+    }
+    .chalkboard-bg {
+      background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 100%);
+    }
+    /* 逐筆繪製動畫關鍵類別 */
+    .step-item {
+      opacity: 0;
+      transform: scale(0.92);
+      transform-origin: center;
+      transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+    .step-item.revealed {
+      opacity: 1 !important;
+      transform: scale(1) !important;
+      pointer-events: auto;
+    }
+    .draw-line {
+      stroke-dasharray: 400;
+      stroke-dashoffset: 400;
+      transition: stroke-dashoffset 0.8s ease-in-out, opacity 0.4s ease;
+      opacity: 0;
+    }
+    .draw-line.revealed {
+      stroke-dashoffset: 0 !important;
+      opacity: 1 !important;
+    }
+    @keyframes pulseSoft {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    .pulse-target { animation: pulseSoft 2.5s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-amber-50/40 text-slate-800 flex flex-col justify-between select-none">
+
+  <!-- 頂部導覽與模式切換列 -->
+  <header class="w-full max-w-xl mx-auto px-4 pt-3 pb-2 flex items-center justify-between z-20">
+    <div class="flex items-center space-x-2">
+      <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center font-black text-sm">3C</div>
+      <span class="font-black text-slate-800 text-sm tracking-wide">三個圓圈佈道法</span>
+    </div>
+    
+    <div class="flex items-center bg-slate-200/80 p-1 rounded-full text-xs font-bold text-slate-600">
+      <button id="btnModeCard" onclick="switchMode('card')" class="px-3 py-1 rounded-full transition-all bg-white text-slate-900 shadow-sm">卡片對話</button>
+      <button id="btnModeBoard" onclick="switchMode('board')" class="px-3 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800">逐筆黑板</button>
+    </div>
+  </header>
+
+  <!-- 主要內容顯示區塊 -->
+  <main class="flex-1 w-full max-w-xl mx-auto px-4 py-2 flex flex-col justify-center relative overflow-hidden">
+    
+    <!-- ================= 模式一：卡片對話模式 ================= -->
+    <div id="viewCard" class="w-full h-full flex flex-col justify-between transition-all duration-300">
+      
+      <!-- 進度指示條 -->
+      <div class="flex justify-between items-center px-1 mb-2">
+        <span id="cardBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">步驟 1/6</span>
+        <div class="flex space-x-1.5" id="cardDots"></div>
+      </div>
+
+      <!-- 卡片內容容器 -->
+      <div class="glass-card flex-1 rounded-3xl p-5 shadow-xl shadow-amber-900/5 flex flex-col justify-between border border-white/80 relative overflow-hidden">
+        
+        <!-- 卡片視覺圖示 -->
+        <div id="cardArtwork" class="w-full flex-1 flex items-center justify-center max-h-[36vh]"></div>
+
+        <!-- 卡片文字與提問區 -->
+        <div class="space-y-2 mt-2">
+          <div class="flex items-baseline justify-between">
+            <h2 id="cardTitle" class="text-xl font-black text-slate-900">神的完美創造</h2>
+            <span id="cardRef" class="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">創世記 1:31</span>
+          </div>
+          <p id="cardDesc" class="text-sm text-slate-600 leading-relaxed min-h-[44px]">起初，神創造的世界滿有和睦、愛與豐盛。我們每個人深處都在渴望愛、安全與長久的美好，這正是神原本設計在我們生命裡的藍圖。</p>
+          
+          <!-- 佈道對話提問框 -->
+          <div class="bg-amber-50/70 border-l-4 border-amber-500 p-2.5 rounded-r-xl">
+            <div class="text-[11px] font-bold text-amber-900 uppercase tracking-wider mb-0.5">💬 佈道提問引導</div>
+            <p id="cardQuestion" class="text-xs text-amber-950 font-medium">「你曾看過日落或美麗的自然，感受到這世界背後有份特別的美好嗎？」</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 卡片下方操作按鈕 -->
+      <div class="flex items-center justify-between pt-3 pb-1 px-1">
+        <button onclick="prevCard()" id="btnPrevCard" class="px-5 py-2.5 rounded-2xl font-bold text-sm text-slate-500 bg-white/70 border border-slate-200 active:scale-95 transition-all">上一步</button>
+        <button onclick="nextCard()" id="btnNextCard" class="px-7 py-2.5 rounded-2xl font-bold text-sm text-white bg-slate-900 shadow-lg shadow-slate-900/20 active:scale-95 transition-all flex items-center space-x-1.5">
+          <span id="btnNextCardLabel">下一步</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ================= 模式二：逐筆動態黑板模式 ================= -->
+    <div id="viewBoard" class="w-full h-full flex flex-col justify-between hidden transition-all duration-300">
+      
+      <!-- 黑板畫布卡片 -->
+      <div class="chalkboard-bg flex-1 rounded-3xl p-3 shadow-2xl relative flex flex-col justify-between border border-slate-700/80 overflow-hidden">
+        
+        <!-- 黑板頂部資訊指示 -->
+        <div class="flex items-center justify-between text-xs text-slate-300 px-2 pt-1 z-10">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="boardStepIndicator" class="font-mono text-emerald-300 font-bold tracking-wider">STAGE 0 / 6</span>
+          </div>
+          <button onclick="resetBoard()" class="text-slate-400 hover:text-white px-2 py-0.5 text-xs bg-slate-800/80 rounded-md border border-slate-700 active:scale-90 transition-all">重新重繪</button>
+        </div>
+
+        <!-- SVG 向量動態繪圖區 -->
+        <div class="flex-1 w-full relative flex items-center justify-center my-1">
+          <svg id="boardSvg" class="w-full h-full max-h-[48vh]" viewBox="0 0 380 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+            
+            <!-- 網格裝飾點線 (手繪黑板格線) -->
+            <defs>
+              <pattern id="boardGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="380" height="420" fill="url(#boardGrid)" />
+
+            <!-- ============ 步驟 1: 神的設計 (左上圓圈) ============ -->
+            <g id="stepG1" class="step-item">
+              <circle cx="90" cy="110" r="46" stroke="#38bdf8" stroke-width="4" stroke-dasharray="8 4" fill="rgba(56, 189, 248, 0.12)" />
+              <text x="90" y="104" text-anchor="middle" fill="#7dd3fc" font-size="14" font-weight="bold">神的設計</text>
+              <text x="90" y="124" text-anchor="middle" fill="#bae6fd" font-size="11">God's Design</text>
+              <!-- 讚賞小愛心裝飾 -->
+              <circle cx="120" cy="76" r="6" fill="#38bdf8" />
+            </g>
+
+            <!-- ============ 步驟 2: 罪與偏離 (向右弧形箭頭) ============ -->
+            <g id="stepG2" class="step-item">
+              <path class="draw-line" d="M 140 92 Q 190 70 238 92" stroke="#f87171" stroke-width="4" stroke-linecap="round" fill="none" marker-end="url(#redArrow)" />
+              <rect x="168" y="60" width="44" height="20" rx="10" fill="#dc2626" />
+              <text x="190" y="74" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="900">罪 Sin</text>
+            </g>
+
+            <!-- ============ 步驟 3: 破碎的世界 (右上圓圈) ============ -->
+            <g id="stepG3" class="step-item">
+              <circle cx="290" cy="110" r="46" stroke="#f87171" stroke-width="4" stroke-dasharray="6 3" fill="rgba(239, 68, 68, 0.12)" />
+              <text x="290" y="104" text-anchor="middle" fill="#fca5a5" font-size="14" font-weight="bold">破碎世界</text>
+              <text x="290" y="124" text-anchor="middle" fill="#fee2e2" font-size="11">Brokenness</text>
+              <!-- 裂痕紋路 -->
+              <path d="M 284 80 L 292 98 L 286 114 L 294 136" stroke="#ef4444" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8" />
+            </g>
+
+            <!-- ============ 步驟 4: 自救的逃離與彈回 (逃離循環箭頭) ============ -->
+            <g id="stepG4" class="step-item">
+              <!-- 往上逃離卻又彈回的彈簧迴圈 -->
+              <path class="draw-line" d="M 334 88 C 370 70 375 140 338 132" stroke="#fbbf24" stroke-width="3" stroke-dasharray="5 3" stroke-linecap="round" fill="none" />
+              <text x="356" y="112" text-anchor="middle" fill="#fde68a" font-size="10">自救嘗試</text>
+              <text x="356" y="124" text-anchor="middle" fill="#d97706" font-size="9">又彈回痛苦</text>
+            </g>
+
+            <!-- ============ 步驟 5: 耶穌基督與福音 (下方中央大圓圈與十架) ============ -->
+            <g id="stepG5" class="step-item">
+              <!-- 下方核心圓圈 -->
+              <circle cx="190" cy="285" r="54" stroke="#fbbf24" stroke-width="4.5" fill="rgba(245, 158, 11, 0.14)" />
+              <!-- 十字架救恩 -->
+              <path d="M 190 252 L 190 318 M 168 274 L 212 274" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" />
+              <text x="190" y="332" text-anchor="middle" fill="#fef3c7" font-size="12" font-weight="900">耶穌基督 Gospel</text>
+              
+              <!-- 救贖路徑：從破碎悔改轉向耶穌 -->
+              <path class="draw-line" d="M 265 148 Q 240 200 215 242" stroke="#4ade80" stroke-width="3.5" stroke-linecap="round" fill="none" />
+              <rect x="238" y="186" width="56" height="18" rx="9" fill="#15803d" />
+              <text x="266" y="199" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="bold">悔改相信</text>
+            </g>
+
+            <!-- ============ 步驟 6: 恢復與差遣 (從耶穌重回神的設計) ============ -->
+            <g id="stepG6" class="step-item">
+              <!-- 恢復與成長的生命循環箭頭 -->
+              <path class="draw-line" d="M 162 244 Q 130 190 105 152" stroke="#38bdf8" stroke-width="3.5" stroke-linecap="round" fill="none" />
+              <rect x="88" y="186" width="56" height="18" rx="9" fill="#0284c7" />
+              <text x="116" y="199" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="bold">恢復同行</text>
+              
+              <!-- 雙向使命符號 (回到世界領人歸主) -->
+              <path class="draw-line" d="M 120 128 L 250 128" stroke="#a78bfa" stroke-width="2.5" stroke-dasharray="4 4" fill="none" />
+              <text x="190" y="142" text-anchor="middle" fill="#c4b5fd" font-size="10">差遣與大使命</text>
+            </g>
+
+          </svg>
+        </div>
+
+        <!-- 黑板即時解說文字框 -->
+        <div class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3 z-10 min-h-[64px] flex flex-col justify-center">
+          <div class="flex items-center space-x-2 mb-0.5">
+            <span id="boardTopicTitle" class="text-xs font-black text-amber-400">點擊下方按鈕，開始逐筆繪製</span>
+          </div>
+          <p id="boardTopicDesc" class="text-xs text-slate-300 leading-snug">跟隨手繪節奏，向慕道朋友清楚呈現從「創造」到「破碎」、並透過「十架救贖」回歸生命設計的完整旅程。</p>
+        </div>
+      </div>
+
+      <!-- 黑板操作按鈕 -->
+      <div class="flex items-center justify-between pt-3 pb-1 px-1">
+        <button onclick="stepBackwardBoard()" id="btnPrevBoard" class="px-5 py-2.5 rounded-2xl font-bold text-sm text-slate-400 bg-slate-900/10 border border-slate-300 active:scale-95 transition-all">倒退一筆</button>
+        <button onclick="stepForwardBoard()" id="btnNextBoard" class="px-7 py-2.5 rounded-2xl font-bold text-sm text-slate-900 bg-amber-400 shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center space-x-1.5 font-black">
+          <span id="btnNextBoardLabel">畫出下一步</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ================= 資料定義 =================
+    const cardData = [
+      {
+        badge: "第 1 圈 / 共 3 圈",
+        title: "神的完美設計",
+        ref: "創世記 1:31",
+        desc: "起初，神創造的世界滿有和睦、愛與平安。神深愛我們，對我們的生命有一個美善和充滿目的的設計。",
+        question: "「當你看到壯麗的日落或純真嬰孩時，是否曾體會過這世界最初本該是如此美好的？」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <circle cx="100" cy="100" r="75" fill="#e0f2fe" stroke="#38bdf8" stroke-width="6"/>
+          <!-- 微笑可愛小地球與愛心 -->
+          <circle cx="80" cy="90" r="7" fill="#0369a1"/>
+          <circle cx="120" cy="90" r="7" fill="#0369a1"/>
+          <path d="M 80 115 Q 100 135 120 115" stroke="#0369a1" stroke-width="5" stroke-linecap="round" fill="none"/>
+          <circle cx="72" cy="102" r="5" fill="#f43f5e" opacity="0.4"/>
+          <circle cx="128" cy="102" r="5" fill="#f43f5e" opacity="0.4"/>
+          <path d="M 100 45 C 95 35 80 38 80 50 C 80 62 100 75 100 75 C 100 75 120 62 120 50 C 120 38 105 35 100 45 Z" fill="#f43f5e"/>
+        </svg>`
+      },
+      {
+        badge: "關鍵轉折",
+        title: "偏離與罪的破壞",
+        ref: "羅馬書 3:23",
+        desc: "然而，我們都想憑著自己的想法生活，選擇轉身離開神的設計，這在聖經中稱為「罪」——也就是偏離了生命的正確靶心。",
+        question: "「如果我們捫心自問，是不是常有自私、驕傲、傷害所愛之人的時候？這就是我們偏離了源頭。」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <!-- 偏離方向的頑皮角色 -->
+          <circle cx="100" cy="100" r="75" fill="#fee2e2" stroke="#f87171" stroke-width="6"/>
+          <path d="M 60 100 L 140 100" stroke="#ef4444" stroke-width="5" stroke-dasharray="6 4"/>
+          <!-- 驚訝小人 -->
+          <circle cx="85" cy="88" r="6" fill="#991b1b"/>
+          <circle cx="115" cy="88" r="6" fill="#991b1b"/>
+          <ellipse cx="100" cy="115" rx="10" ry="14" fill="#991b1b"/>
+        </svg>`
+      },
+      {
+        badge: "第 2 圈 / 共 3 圈",
+        title: "身陷破碎的世界",
+        ref: "羅馬書 1:21",
+        desc: "偏離神設計的結果，就是走進「破碎」。疾病、孤單、焦慮、冷漠與死亡充斥，沒有人能逃避這份深層的失落與空虛。",
+        question: "「在日常生活中，最讓你感到心累或破碎的，通常是人際關係、工作壓力，還是內心的焦慮？」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <circle cx="100" cy="100" r="75" fill="#fef2f2" stroke="#ef4444" stroke-width="6" stroke-dasharray="10 5"/>
+          <!-- 破碎裂痕與委屈小水滴 -->
+          <path d="M 100 35 L 92 70 L 108 105 L 94 135 L 102 165" stroke="#dc2626" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <circle cx="75" cy="95" r="6" fill="#7f1d1d"/>
+          <circle cx="125" cy="95" r="6" fill="#7f1d1d"/>
+          <path d="M 80 125 Q 100 110 120 125" stroke="#7f1d1d" stroke-width="5" stroke-linecap="round" fill="none"/>
+        </svg>`
+      },
+      {
+        badge: "人的掙扎",
+        title: "徒勞的自救嘗試",
+        ref: "箴言 14:12",
+        desc: "處在破碎中，我們嘗試賺更多錢、狂歡、沈迷物質或尋求成就感來填補空虛；但這些方法像彈簧一樣，短暫逃離後又把我們彈回更深的痛苦。",
+        question: "「你是否也曾試過用某些消遣或瘋狂忙碌來麻痺痛苦，過後卻發現空虛感反而更大了？」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <!-- 向上衝刺卻彈回的彈簧箭頭 -->
+          <path d="M 100 160 C 140 160 150 70 100 50 C 60 70 70 150 100 150" stroke="#f59e0b" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="8 4"/>
+          <circle cx="100" cy="50" r="14" fill="#f59e0b"/>
+          <text x="100" y="55" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold">彈回</text>
+        </svg>`
+      },
+      {
+        badge: "第 3 圈 / 核心轉機",
+        title: "十字架的救恩：耶穌",
+        ref: "約翰福音 3:16",
+        desc: "神沒有任憑我們在破碎中沈淪。祂差派獨生愛子耶穌降世，替我們的罪死在十字架上，第三天復活，徹底打破罪與死亡的權勢！",
+        question: "「這就是福音的震撼之處——神親自俯身來到破碎世界，為我們架起回到祂懷裡的橋樑。」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <circle cx="100" cy="100" r="75" fill="#fef3c7" stroke="#f59e0b" stroke-width="6"/>
+          <!-- 發光十架與和平鴿象徵 -->
+          <path d="M 100 50 L 100 150 M 65 85 L 135 85" stroke="#d97706" stroke-width="12" stroke-linecap="round"/>
+          <circle cx="100" cy="85" r="28" fill="rgba(251, 191, 36, 0.4)" />
+        </svg>`
+      },
+      {
+        badge: "決志與新生命",
+        title: "悔改相信，回歸設計",
+        ref: "馬可福音 1:15",
+        desc: "當我們願意承認自救的無能，放下掌控、悔改並接受耶穌作為救主，我們不僅罪得赦免，更重新恢復與神的關係，被差遣去祝福這個世界！",
+        question: "「你現在願意打開心門，邀請耶穌進入你的生命，走出破碎、重新活出神為你預備的豐盛嗎？」",
+        svg: `<svg viewBox="0 0 200 200" class="w-44 h-44 drop-shadow-md">
+          <!-- 滿滿祝福光芒 -->
+          <circle cx="100" cy="100" r="75" fill="#dcfce7" stroke="#22c55e" stroke-width="6"/>
+          <circle cx="80" cy="90" r="7" fill="#15803d"/>
+          <circle cx="120" cy="90" r="7" fill="#15803d"/>
+          <path d="M 75 115 Q 100 145 125 115" stroke="#15803d" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <circle cx="100" cy="40" r="8" fill="#eab308"/>
+          <circle cx="45" cy="100" r="6" fill="#eab308"/>
+          <circle cx="155" cy="100" r="6" fill="#eab308"/>
+        </svg>`
+      }
+    ];
+
+    const boardStepData = [
+      {
+        title: "準備開始：空白黑板",
+        desc: "點擊下方「畫出下一步」，我們將從神完美的起初開始逐筆繪製。",
+        elements: []
+      },
+      {
+        title: "第 1 筆：神的設計 (God's Design)",
+        desc: "在左側畫出第一個圓圈：神深愛每個人，起初的世界本是完美、和睦且富足的。",
+        elements: ["stepG1"]
+      },
+      {
+        title: "第 2 筆：罪的偏離 (Sin)",
+        desc: "畫出向右箭頭：人想要自己作王，選擇背離神的法則，偏離了原本美善的軌道。",
+        elements: ["stepG1", "stepG2"]
+      },
+      {
+        title: "第 3 筆：破碎的世界 (Brokenness)",
+        desc: "在右側畫出第二個圓圈：偏離神帶來了痛苦、空虛、關係破裂以及對死亡的恐懼。",
+        elements: ["stepG1", "stepG2", "stepG3"]
+      },
+      {
+        title: "第 4 筆：徒勞的自救 (Self Remedies)",
+        desc: "畫出往上逃離的彈簧線：人嘗試賺錢、享樂或宗教善行自救，卻一再彈回破碎中。",
+        elements: ["stepG1", "stepG2", "stepG3", "stepG4"]
+      },
+      {
+        title: "第 5 筆：十字架救恩與悔改相信",
+        desc: "在下方畫出第三個大圓與十字架：耶穌降世為我們受死復活，藉著悔改相信走向救恩。",
+        elements: ["stepG1", "stepG2", "stepG3", "stepG4", "stepG5"]
+      },
+      {
+        title: "第 6 筆：恢復同行與領受使命",
+        desc: "畫出回歸箭頭：生命重新恢復與神同行，並帶著盼望回到世界，去領人出黑暗入光明！",
+        elements: ["stepG1", "stepG2", "stepG3", "stepG4", "stepG5", "stepG6"]
+      }
+    ];
+
+    // ================= 狀態管理 =================
+    let currentCardIndex = 0;
+    let currentBoardStep = 0;
+
+    // 模式切換 (card / board)
+    function switchMode(mode) {
+      const vCard = document.getElementById("viewCard");
+      const vBoard = document.getElementById("viewBoard");
+      const bCard = document.getElementById("btnModeCard");
+      const bBoard = document.getElementById("btnModeBoard");
+
+      if (mode === 'card') {
+        vCard.classList.remove("hidden");
+        vBoard.classList.add("hidden");
+        bCard.className = "px-3 py-1 rounded-full transition-all bg-white text-slate-900 shadow-sm";
+        bBoard.className = "px-3 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800";
+      } else {
+        vCard.classList.add("hidden");
+        vBoard.classList.remove("hidden");
+        bBoard.className = "px-3 py-1 rounded-full transition-all bg-white text-slate-900 shadow-sm";
+        bCard.className = "px-3 py-1 rounded-full transition-all text-slate-500 hover:text-slate-800";
+        // 切換過來時刷新當前黑板狀態
+        applyBoardStep(currentBoardStep);
+      }
+    }
+
+    // ================= 卡片模式邏輯 =================
+    function initCardDots() {
+      const dotsContainer = document.getElementById("cardDots");
+      dotsContainer.innerHTML = "";
+      cardData.forEach((_, i) => {
+        const dot = document.createElement("div");
+        dot.className = `w-2 h-2 rounded-full transition-all ${i === currentCardIndex ? 'bg-amber-600 w-5' : 'bg-slate-300'}`;
+        dotsContainer.appendChild(dot);
+      });
+    }
+
+    function renderCard(index) {
+      const data = cardData[index];
+      document.getElementById("cardBadge").textContent = data.badge;
+      document.getElementById("cardTitle").textContent = data.title;
+      document.getElementById("cardRef").textContent = data.ref;
+      document.getElementById("cardDesc").textContent = data.desc;
+      document.getElementById("cardQuestion").textContent = data.question;
+      document.getElementById("cardArtwork").innerHTML = data.svg;
+
+      // 按鈕標籤
+      document.getElementById("btnNextCardLabel").textContent = (index === cardData.length - 1) ? "帶領決志禱告" : "下一步";
+      document.getElementById("btnPrevCard").style.visibility = (index === 0) ? "hidden" : "visible";
+
+      initCardDots();
+    }
+
+    function nextCard() {
+      if (currentCardIndex < cardData.length - 1) {
+        currentCardIndex++;
+        renderCard(currentCardIndex);
+      } else {
+        alert("【帶領決志禱告】\n\n「親愛的天父，我相信祢愛我，並對我的人生有美好的設計。我承認我在破碎中，靠自己偏離了祢。感謝耶穌為我的罪死在十字架上，並從死裡復活。現在我願意打開心門，接受耶穌作我的救主和生命的主。求祢帶領我重新活在祢的愛與同在中。奉耶穌基督的名禱告，阿們！」");
+      }
+    }
+
+    function prevCard() {
+      if (currentCardIndex > 0) {
+        currentCardIndex--;
+        renderCard(currentCardIndex);
+      }
+    }
+
+    // ================= 黑板模式修復核心 =================
+    function applyBoardStep(step) {
+      const allStepIds = ["stepG1", "stepG2", "stepG3", "stepG4", "stepG5", "stepG6"];
+      const activeIds = boardStepData[step].elements;
+
+      allStepIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        if (activeIds.includes(id)) {
+          // 啟用顯示
+          el.classList.add("revealed");
+          // 觸發內部線條動畫
+          const lines = el.querySelectorAll(".draw-line");
+          lines.forEach(line => line.classList.add("revealed"));
+        } else {
+          // 隱藏
+          el.classList.remove("revealed");
+          const lines = el.querySelectorAll(".draw-line");
+          lines.forEach(line => line.classList.remove("revealed"));
+        }
+      });
+
+      // 更新說明與計數器
+      document.getElementById("boardStepIndicator").textContent = `STAGE ${step} / 6`;
+      document.getElementById("boardTopicTitle").textContent = boardStepData[step].title;
+      document.getElementById("boardTopicDesc").textContent = boardStepData[step].desc;
+
+      // 按鈕文字更新
+      document.getElementById("btnNextBoardLabel").textContent = (step === 6) ? "重新瀏覽" : "畫出下一步";
+      document.getElementById("btnPrevBoard").style.visibility = (step === 0) ? "hidden" : "visible";
+    }
+
+    function stepForwardBoard() {
+      if (currentBoardStep < 6) {
+        currentBoardStep++;
+      } else {
+        currentBoardStep = 0; // 循環回到起點
+      }
+      applyBoardStep(currentBoardStep);
+    }
+
+    function stepBackwardBoard() {
+      if (currentBoardStep > 0) {
+        currentBoardStep--;
+        applyBoardStep(currentBoardStep);
+      }
+    }
+
+    function resetBoard() {
+      currentBoardStep = 0;
+      applyBoardStep(0);
+    }
+
+    // 初始化啟動
+    renderCard(0);
+    applyBoardStep(0);
+  </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => console.log('PWA ServiceWorker 註冊成功:', reg.scope))
+        .catch((err) => console.error('PWA 註冊失敗:', err));
+    });
+  }
+</script>
+</body>
+</html>
